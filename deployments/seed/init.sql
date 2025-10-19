@@ -23,10 +23,23 @@ CREATE TABLE IF NOT EXISTS images (
 );
 CREATE INDEX IF NOT EXISTS idx_images_tenant_namespace ON images(tenant_namespace);
 
+-- Build Events Table
+CREATE TABLE IF NOT EXISTS build_events (
+    id SERIAL PRIMARY KEY,
+    tenant_namespace VARCHAR(255) NOT NULL REFERENCES customers(namespace) ON DELETE CASCADE,
+    image_id INT REFERENCES images(id) ON DELETE SET NULL, -- Allow image_id to be null if image is deleted
+    trigger_type VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_build_events_tenant_namespace ON build_events(tenant_namespace);
+CREATE INDEX IF NOT EXISTS idx_build_events_status ON build_events(status);
+
 -- Table for SBOM records
 CREATE TABLE IF NOT EXISTS sbom_records (
     id SERIAL PRIMARY KEY,
-    image_id INT REFERENCES images(id) ON DELETE CASCADE,
+    image_id INT NOT NULL REFERENCES images(id) ON DELETE CASCADE,
     format VARCHAR(50) NOT NULL, -- e.g., 'SPDX', 'CycloneDX'
     uri VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -36,7 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_sbom_records_image_id ON sbom_records(image_id);
 -- Table for CVE findings
 CREATE TABLE IF NOT EXISTS cve_findings (
     id SERIAL PRIMARY KEY,
-    image_id INT REFERENCES images(id) ON DELETE CASCADE,
+    image_id INT NOT NULL REFERENCES images(id) ON DELETE CASCADE,
     cve_id VARCHAR(50) NOT NULL,
     severity VARCHAR(50) NOT NULL, -- e.g., 'Critical', 'High', 'Medium', 'Low'
     description TEXT,
@@ -48,7 +61,7 @@ CREATE INDEX IF NOT EXISTS idx_cve_findings_image_id ON cve_findings(image_id);
 -- Table for attestations
 CREATE TABLE IF NOT EXISTS attestations (
     id SERIAL PRIMARY KEY,
-    image_id INT REFERENCES images(id) ON DELETE CASCADE,
+    image_id INT NOT NULL REFERENCES images(id) ON DELETE CASCADE,
     type VARCHAR(100) NOT NULL, -- e.g., 'provenance', 'slsa'
     uri VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -57,41 +70,34 @@ CREATE INDEX IF NOT EXISTS idx_attestations_image_id ON attestations(image_id);
 
 
 -- Seed data
-TRUNCATE customers, images, sbom_records, cve_findings, attestations RESTART IDENTITY CASCADE;
+TRUNCATE customers, images, build_events, sbom_records, cve_findings, attestations RESTART IDENTITY CASCADE;
 
 INSERT INTO customers (namespace, name, contact_info, sla_tier) VALUES
-('acme-corp', 'ACME Corporation', 'security@acme.corp', 'enterprise'),
-('startup-inc', 'Startup Inc.', 'devops@startup.inc', 'standard');
+('acme-corp', 'ACME Corporation', 'contact@acme.com', 'enterprise'),
+('startup-x', 'Startup X', 'devops@startupx.io', 'standard');
 
 INSERT INTO images (tenant_namespace, digest, tags, slsa_level) VALUES
-('acme-corp', 'sha256:c3d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3', '{"latest", "1.2.3"}', 3),
-('acme-corp', 'sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890', '{"1.2.2"}', 3),
-('startup-inc', 'sha256:fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321', '{"latest"}', 2),
-('startup-inc', 'sha256:11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff', '{"stable"}', 2);
+('acme-corp', 'sha256:c3d3e4f5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3', ARRAY['latest', '1.2.3'], 3),
+('startup-x', 'sha256:d4e4f5g6h7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c4d5', ARRAY['latest'], 1);
 
--- Seed SBOMs for image 1
+-- Seed SBOMs
 INSERT INTO sbom_records (image_id, format, uri) VALUES
-(1, 'SPDX', 'minio://sboms/acme-corp/image-1.spdx.json'),
-(1, 'CycloneDX', 'minio://sboms/acme-corp/image-1.cdx.json');
+(1, 'SPDX', 'minio://sboms/acme-corp/c3d3e4f5.../sbom.spdx.json'),
+(1, 'CycloneDX', 'minio://sboms/acme-corp/c3d3e4f5.../sbom.cyclonedx.json'),
+(2, 'SPDX', 'minio://sboms/startup-x/d4e4f5g6.../sbom.spdx.json');
 
--- Seed CVEs for image 1
+-- Seed CVEs
 INSERT INTO cve_findings (image_id, cve_id, severity, description, fix_available) VALUES
-(1, 'CVE-2023-4567', 'Critical', 'Remote code execution vulnerability in lib-xyz.', true),
-(1, 'CVE-2023-8910', 'Medium', 'Denial of service in logging component.', false);
+(1, 'CVE-2023-12345', 'High', 'Remote code execution vulnerability in libfoo', true),
+(1, 'CVE-2023-67890', 'Medium', 'Denial of service in bar-utils', false),
+(2, 'CVE-2023-54321', 'Critical', 'SQL injection in database driver', true);
 
--- Seed Attestations for image 1
+-- Seed Attestations
 INSERT INTO attestations (image_id, type, uri) VALUES
-(1, 'provenance', 'minio://attestations/acme-corp/image-1-provenance.json'),
-(1, 'slsa-v1.0', 'minio://attestations/acme-corp/image-1-slsa.json');
+(1, 'provenance', 'minio://attestations/acme-corp/c3d3e4f5.../provenance.json'),
+(1, 'vuln-scan', 'minio://attestations/acme-corp/c3d3e4f5.../scan-report.json');
 
--- Seed SBOMs for image 2
-INSERT INTO sbom_records (image_id, format, uri) VALUES
-(2, 'SPDX', 'minio://sboms/acme-corp/image-2.spdx.json');
-
--- Seed CVEs for image 3
-INSERT INTO cve_findings (image_id, cve_id, severity, description, fix_available) VALUES
-(3, 'CVE-2024-0001', 'High', 'SQL injection vulnerability in base image.', true);
-
--- Seed Attestations for image 3
-INSERT INTO attestations (image_id, type, uri) VALUES
-(3, 'provenance', 'minio://attestations/startup-inc/image-3-provenance.json');
+-- Seed Build Events
+INSERT INTO build_events (tenant_namespace, image_id, trigger_type, status) VALUES
+('acme-corp', 1, 'manual', 'completed'),
+('startup-x', 2, 'webhook', 'completed');
