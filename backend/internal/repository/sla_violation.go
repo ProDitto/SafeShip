@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"secure-image-service/backend/internal/domain"
+	"secure-image-service/internal/domain"
 )
 
 type SLAViolationRepository interface {

@@ -1,15 +1,16 @@
-package http_adapter
+package http
 
 import (
 	"context"
 	"net/http"
 	"time"
 
-	"secure-image-service/backend/internal/adapter/handler/http/middleware"
-	"secure-image-service/backend/internal/usecase"
+	"secure-image-service/internal/adapter/handler/http/middleware"
+	"secure-image-service/internal/usecase"
 
 	"github.com/go-chi/chi/v5"
 	chi_middleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/rs/zerolog"
 )
 
@@ -49,6 +50,12 @@ func (s *Server) setupRoutes() {
 	s.Router.Use(chi_middleware.Logger)
 	s.Router.Use(chi_middleware.Recoverer)
 	s.Router.Use(chi_middleware.Timeout(60 * time.Second))
+	s.Router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+	}))
 
 	// Public routes
 	s.Router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -89,4 +96,3 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	s.Logger.Info().Msg("Server shutdown complete.")
 	return nil
 }
-

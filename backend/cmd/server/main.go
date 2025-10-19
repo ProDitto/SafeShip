@@ -10,13 +10,14 @@ import (
 	"syscall"
 	"time"
 
+	http_adapter "secure-image-service/internal/adapter/handler/http"
+	"secure-image-service/internal/adapter/postgres"
+	"secure-image-service/internal/adapter/simulator"
+	"secure-image-service/internal/usecase"
+	"secure-image-service/pkg/config"
+	"secure-image-service/pkg/logger"
+
 	"github.com/joho/godotenv"
-	http_adapter "secure-image-service/backend/internal/adapter/handler/http"
-	"secure-image-service/backend/internal/adapter/postgres"
-	"secure-image-service/backend/internal/adapter/simulator"
-	"secure-image-service/backend/internal/usecase"
-	"secure-image-service/backend/pkg/config"
-	"secure-image-service/backend/pkg/logger"
 )
 
 func main() {
@@ -94,4 +95,3 @@ func main() {
 
 	log.Info().Msg("Server gracefully stopped")
 }
-

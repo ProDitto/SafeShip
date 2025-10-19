@@ -2,8 +2,8 @@ package usecase
 
 import (
 	"context"
-	"secure-image-service/backend/internal/domain"
-	"secure-image-service/backend/internal/repository"
+	"secure-image-service/internal/domain"
+	"secure-image-service/internal/repository"
 )
 
 type AuditUsecase struct {
@@ -23,4 +23,3 @@ func (uc *AuditUsecase) Log(ctx context.Context, namespace, action, actor string
 	}
 	return uc.repo.Create(ctx, logEntry)
 }
-

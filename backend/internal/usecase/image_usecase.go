@@ -2,9 +2,9 @@ package usecase
 
 import (
 	"context"
-	"secure-image-service/backend/internal/adapter/simulator"
-	"secure-image-service/backend/internal/domain"
-	"secure-image-service/backend/internal/repository"
+	"secure-image-service/internal/adapter/simulator"
+	"secure-image-service/internal/domain"
+	"secure-image-service/internal/repository"
 )
 
 // ImageUsecase handles business logic for images.
@@ -67,4 +67,3 @@ func (uc *ImageUsecase) CreateBuild(ctx context.Context, tenantNamespace, trigge
 
 	return buildEvent, nil
 }
-

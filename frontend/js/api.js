@@ -1,6 +1,6 @@
 import { getToken } from './auth.js';
 
-const BASE_URL = '/v1';
+const BASE_URL = 'https://ominous-succotash-x5rw57r6gxw72j7v-8080.app.github.dev/v1';
 
 async function fetchJSON(url, options = {}) {
     const headers = {

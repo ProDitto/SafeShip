@@ -2,11 +2,13 @@ package http
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
 	"secure-image-service/internal/usecase"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // ImageHandler handles HTTP requests for images.
@@ -51,6 +53,7 @@ func (h *ImageHandler) CreateBuild(w http.ResponseWriter, r *http.Request) {
 func (h *ImageHandler) ListImages(w http.ResponseWriter, r *http.Request) {
 	images, err := h.usecase.ListImages(r.Context())
 	if err != nil {
+		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, "Could not retrieve images")
 		return
 	}

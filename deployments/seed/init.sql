@@ -2,7 +2,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Clear existing data and reset sequences
-TRUNCATE TABLE customers, images, build_events, sbom_records, cve_findings, attestations, customer_image_usage, sla_violations, notifications, audit_logs RESTART IDENTITY CASCADE;
+-- TRUNCATE TABLE customers, images, build_events, sbom_records, cve_findings, attestations, customer_image_usage, sla_violations, notifications, audit_logs RESTART IDENTITY CASCADE;
 
 -- Create customers table to represent tenants
 CREATE TABLE IF NOT EXISTS customers (
@@ -118,8 +118,8 @@ INSERT INTO customers (namespace, name, contact_info, sla_tier) VALUES
 INSERT INTO images (tenant_namespace, digest, tags, slsa_level) VALUES
 ('customer-a', 'sha256:c3d3b3c3d3b3c3d3d3b3c3d3d3b3c3d3d3b3c3d3d3b3c3d3d3b3c3d3d3b3c3d3', '{"1.0.0", "latest"}', 3),
 ('customer-a', 'sha256:a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1', '{"1.0.1"}', 3),
-('customer-a', 'sha256:b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2', '{"2.0.0-clean"}', 4),
-('customer-b', 'sha256:d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4', '{"v1-stable"}', 2);
+('customer-a', 'sha256:b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2', '{"2.0.0-clean"}', 4),
+('customer-b', 'sha256:d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4', '{"v1-stable"}', 2);
 
 -- Seed SBOM Records
 INSERT INTO sbom_records (image_id, format, uri) VALUES
@@ -138,7 +138,7 @@ INSERT INTO cve_findings (image_id, cve_id, severity, description, fix_available
 -- Seed Attestations
 INSERT INTO attestations (image_id, type, uri) VALUES
 (1, 'provenance', 'minio://attestations/customer-a/image1-provenance.json'),
-(1', 'vuln-scan', 'minio://attestations/customer-a/image1-vuln-scan.json'),
+(1, 'vuln-scan', 'minio://attestations/customer-a/image1-vuln-scan.json'),
 (2, 'provenance', 'minio://attestations/customer-a/image2-provenance.json'),
 (3, 'provenance', 'minio://attestations/customer-a/image3-provenance.json'),
 (4, 'provenance', 'minio://attestations/customer-b/image4-provenance.json');

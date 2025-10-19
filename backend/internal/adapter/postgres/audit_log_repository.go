@@ -3,8 +3,8 @@ package postgres
 import (
 	"context"
 	"encoding/json"
-	"secure-image-service/backend/internal/domain"
-	"secure-image-service/backend/internal/repository"
+	"secure-image-service/internal/domain"
+	"secure-image-service/internal/repository"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -30,4 +30,3 @@ func (r *pgAuditLogRepository) Create(ctx context.Context, log *domain.AuditLog)
 	_, err = r.db.Exec(ctx, query, log.TenantNamespace, log.Action, log.Actor, detailsJSON)
 	return err
 }
-

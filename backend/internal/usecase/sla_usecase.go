@@ -2,8 +2,7 @@ package usecase
 
 import (
 	"context"
-	"secure-image-service/backend/internal/repository"
-	"time"
+	"secure-image-service/internal/repository"
 )
 
 // This is a simplified placeholder for demonstrating the concept.
@@ -61,4 +60,3 @@ func (uc *SLAUsecase) CheckAllViolations(ctx context.Context) error {
 
 	return nil
 }
-

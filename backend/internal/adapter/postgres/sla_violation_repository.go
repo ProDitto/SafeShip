@@ -2,8 +2,8 @@ package postgres
 
 import (
 	"context"
-	"secure-image-service/backend/internal/domain"
-	"secure-image-service/backend/internal/repository"
+	"secure-image-service/internal/domain"
+	"secure-image-service/internal/repository"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -34,16 +34,25 @@ func (r *pgCustomerRepository) FindAll(ctx context.Context) ([]*domain.Customer,
 }
 
 func (r *pgCustomerRepository) FindByNamespace(ctx context.Context, namespace string) (*domain.Customer, error) {
-	row := r.db.QueryRow(ctx, "SELECT namespace, name, contact_info, sla_tier, created_at, updated_at FROM customers WHERE namespace = $1", namespace)
+	row := r.db.QueryRow(ctx,
+		"SELECT namespace, name, contact_info, sla_tier, created_at, updated_at FROM customers WHERE namespace = $1",
+		namespace,
+	)
 
-	customer, err := pgx.RowToAddrOfStructByPos[domain.Customer](row)
+	var c domain.Customer
+	err := row.Scan(
+		&c.Namespace,
+		&c.Name,
+		&c.ContactInfo,
+		&c.SLATier,
+		&c.CreatedAt,
+		&c.UpdatedAt,
+	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil // Not found is not an error
+			return nil, nil
 		}
 		return nil, err
 	}
-
-	return customer, nil
+	return &c, nil
 }
-

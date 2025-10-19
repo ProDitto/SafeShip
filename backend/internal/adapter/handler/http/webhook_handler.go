@@ -1,9 +1,9 @@
-package http_adapter
+package http
 
 import (
 	"encoding/json"
 	"net/http"
-	"secure-image-service/backend/internal/usecase"
+	"secure-image-service/internal/usecase"
 )
 
 type WebhookHandler struct {
@@ -38,4 +38,3 @@ func (h *WebhookHandler) TriggerUpstreamBuild(w http.ResponseWriter, r *http.Req
 
 	respondWithJSON(w, http.StatusAccepted, buildEvent)
 }
-

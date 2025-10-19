@@ -79,4 +79,3 @@ export function renderImageDetail({ image, sboms, cves, verification }) {
         </div>
     `;
 }
-```

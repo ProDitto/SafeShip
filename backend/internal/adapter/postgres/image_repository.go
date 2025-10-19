@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"log"
 	"secure-image-service/internal/domain"
 	"secure-image-service/internal/repository"
 
@@ -31,8 +32,9 @@ func (r *pgImageRepository) FindAll(ctx context.Context) ([]*domain.Image, error
 	var images []*domain.Image
 	for rows.Next() {
 		var image domain.Image
-		var tags pq.StringArray
+		var tags []string
 		if err := rows.Scan(&image.ID, &image.TenantNamespace, &image.Digest, &tags, &image.SLSALevel, &image.CreatedAt, &image.UpdatedAt); err != nil {
+			log.Println("Error at:", image)
 			return nil, err
 		}
 		image.Tags = tags
@@ -46,7 +48,7 @@ func (r *pgImageRepository) FindAll(ctx context.Context) ([]*domain.Image, error
 func (r *pgImageRepository) FindByID(ctx context.Context, id int) (*domain.Image, error) {
 	query := `SELECT id, tenant_namespace, digest, tags, slsa_level, created_at, updated_at FROM images WHERE id = $1`
 	var image domain.Image
-	var tags pq.StringArray
+	var tags []string
 	err := r.db.QueryRow(ctx, query, id).Scan(&image.ID, &image.TenantNamespace, &image.Digest, &tags, &image.SLSALevel, &image.CreatedAt, &image.UpdatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {

@@ -128,4 +128,3 @@ All services are containerized and orchestrated via `docker-compose`.
 - OCI registry push/pull integrations.
 - Role-based UI access.
 - Complex frontend features (e.g. search suggestions, charts).
-```
