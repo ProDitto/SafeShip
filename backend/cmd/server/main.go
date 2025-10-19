@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,27 +11,25 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	http_handler "secure-image-service/internal/adapter/handler/http"
-	"secure-image-service/internal/adapter/postgres"
-	"secure-image-service/internal/adapter/simulator"
-	"secure-image-service/internal/usecase"
-	"secure-image-service/pkg/config"
-	"secure-image-service/pkg/logger"
+	http_adapter "secure-image-service/backend/internal/adapter/handler/http"
+	"secure-image-service/backend/internal/adapter/postgres"
+	"secure-image-service/backend/internal/adapter/simulator"
+	"secure-image-service/backend/internal/usecase"
+	"secure-image-service/backend/pkg/config"
+	"secure-image-service/backend/pkg/logger"
 )
 
 func main() {
 	// Load .env file for local development
-	if err := godotenv.Load(); err != nil {
-		fmt.Println("No .env file found, using environment variables")
-	}
+	_ = godotenv.Load()
 
 	// Initialize logger
-	appLogger := logger.New()
+	log := logger.New()
 
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		appLogger.Fatal().Err(err).Msg("Failed to load configuration")
+		log.Fatal().Err(err).Msg("Failed to load configuration")
 	}
 
 	// Set up context for graceful shutdown
@@ -40,10 +39,10 @@ func main() {
 	// Establish database connection
 	dbPool, err := postgres.NewConnection(ctx, cfg.DatabaseURL)
 	if err != nil {
-		appLogger.Fatal().Err(err).Msg("Failed to connect to database")
+		log.Fatal().Err(err).Msg("Failed to connect to database")
 	}
 	defer dbPool.Close()
-	appLogger.Info().Msg("Database connection established")
+	log.Info().Msg("Database connection established")
 
 	// Initialize repositories
 	imageRepo := postgres.NewImageRepository(dbPool)
@@ -51,17 +50,19 @@ func main() {
 	buildEventRepo := postgres.NewBuildEventRepository(dbPool)
 	sbomRepo := postgres.NewSBOMRecordRepository(dbPool)
 	cveRepo := postgres.NewCVEFindingRepository(dbPool)
+	auditRepo := postgres.NewAuditLogRepository(dbPool)
 
 	// Initialize simulators
 	orchestrator := simulator.NewMockBuildOrchestrator()
 
 	// Initialize use cases
-	imageUsecase := usecase.NewImageUsecase(imageRepo, buildEventRepo, orchestrator)
+	auditUsecase := usecase.NewAuditUsecase(auditRepo)
+	imageUsecase := usecase.NewImageUsecase(imageRepo, buildEventRepo, orchestrator, auditUsecase)
 	customerUsecase := usecase.NewCustomerUsecase(customerRepo)
 	buildUsecase := usecase.NewBuildUsecase(buildEventRepo, imageRepo, sbomRepo, cveRepo)
 
 	// Initialize HTTP server
-	server := http_handler.NewServer(imageUsecase, customerUsecase, buildUsecase, appLogger)
+	server := http_adapter.NewServer(imageUsecase, customerUsecase, buildUsecase, log)
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%s", cfg.APIPort),
 		Handler: server,
@@ -69,9 +70,9 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		appLogger.Info().Msgf("Server starting on port %s", cfg.APIPort)
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			appLogger.Fatal().Err(err).Msg("Server failed to start")
+		log.Info().Msgf("Server starting on port %s", cfg.APIPort)
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal().Err(err).Msg("Server failed to start")
 		}
 	}()
 
@@ -79,13 +80,18 @@ func main() {
 	<-ctx.Done()
 
 	// Graceful shutdown
-	appLogger.Info().Msg("Shutting down server...")
+	log.Info().Msg("Shutting down server...")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		appLogger.Fatal().Err(err).Msg("Server shutdown failed")
+		log.Fatal().Err(err).Msg("Server shutdown failed")
 	}
 
-	appLogger.Info().Msg("Server gracefully stopped")
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Error().Err(err).Msg("Error during server custom shutdown")
+	}
+
+	log.Info().Msg("Server gracefully stopped")
 }
+

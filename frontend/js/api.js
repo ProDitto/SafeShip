@@ -1,13 +1,31 @@
+import { getToken } from './auth.js';
+
 const BASE_URL = '/v1';
 
 async function fetchJSON(url, options = {}) {
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+    };
+
+    const token = getToken();
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
     try {
-        const response = await fetch(url, options);
+        const response = await fetch(url, { ...options, headers });
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: response.statusText }));
-            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            throw new Error(`API Error: ${response.status} ${errorData.message || response.statusText}`);
         }
-        return await response.json();
+
+        if (response.status === 204) { // No Content
+            return null;
+        }
+
+        return response.json();
     } catch (error) {
         console.error('API call failed:', error);
         throw error;

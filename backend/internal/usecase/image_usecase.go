@@ -2,9 +2,9 @@ package usecase
 
 import (
 	"context"
-	"secure-image-service/internal/adapter/simulator"
-	"secure-image-service/internal/domain"
-	"secure-image-service/internal/repository"
+	"secure-image-service/backend/internal/adapter/simulator"
+	"secure-image-service/backend/internal/domain"
+	"secure-image-service/backend/internal/repository"
 )
 
 // ImageUsecase handles business logic for images.
@@ -12,14 +12,21 @@ type ImageUsecase struct {
 	repo         repository.ImageRepository
 	buildRepo    repository.BuildEventRepository
 	orchestrator simulator.BuildOrchestrator
+	auditUC      *AuditUsecase
 }
 
 // NewImageUsecase creates a new ImageUsecase.
-func NewImageUsecase(repo repository.ImageRepository, buildRepo repository.BuildEventRepository, orchestrator simulator.BuildOrchestrator) *ImageUsecase {
+func NewImageUsecase(
+	repo repository.ImageRepository,
+	buildRepo repository.BuildEventRepository,
+	orchestrator simulator.BuildOrchestrator,
+	auditUC *AuditUsecase,
+) *ImageUsecase {
 	return &ImageUsecase{
 		repo:         repo,
 		buildRepo:    buildRepo,
 		orchestrator: orchestrator,
+		auditUC:      auditUC,
 	}
 }
 
@@ -35,22 +42,29 @@ func (uc *ImageUsecase) GetImage(ctx context.Context, id int) (*domain.Image, er
 
 // CreateBuild creates a build event and triggers a simulated build.
 func (uc *ImageUsecase) CreateBuild(ctx context.Context, tenantNamespace, triggerType string) (*domain.BuildEvent, error) {
-	// 1. Create a build event record in the database
-	event := &domain.BuildEvent{
+	buildEvent := &domain.BuildEvent{
 		TenantNamespace: tenantNamespace,
 		TriggerType:     triggerType,
 		Status:          "pending",
 	}
-	_, err := uc.buildRepo.Create(ctx, event)
+
+	id, err := uc.buildRepo.Create(ctx, buildEvent)
 	if err != nil {
 		return nil, err
 	}
+	buildEvent.ID = id
 
-	// 2. Trigger the build orchestrator
-	if err := uc.orchestrator.TriggerBuild(ctx, event); err != nil {
-		// In a real system, you might want to mark the build event as failed here.
-		return nil, err
+	// Trigger the build process asynchronously
+	go uc.orchestrator.TriggerBuild(context.Background(), buildEvent)
+
+	// Log the audit event
+	auditDetails := map[string]interface{}{
+		"build_event_id": id,
+		"trigger_type":   triggerType,
 	}
+	// In a real system, actor would come from the request context (e.g., user ID, API key ID)
+	_ = uc.auditUC.Log(ctx, tenantNamespace, "build_triggered", "system", auditDetails)
 
-	return event, nil
+	return buildEvent, nil
 }
+
