@@ -2,14 +2,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Clear existing data and reset sequences
-TRUNCATE
-    customers,
-    images,
-    build_events,
-    sbom_records,
-    cve_findings,
-    attestations
-RESTART IDENTITY CASCADE;
+TRUNCATE TABLE customers, images, build_events, sbom_records, cve_findings, attestations, customer_image_usage, sla_violations, notifications, audit_logs RESTART IDENTITY CASCADE;
 
 -- Create customers table to represent tenants
 CREATE TABLE IF NOT EXISTS customers (
@@ -116,46 +109,71 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 
--- Seed data
+-- Seed Customers
 INSERT INTO customers (namespace, name, contact_info, sla_tier) VALUES
-('acme-corp', 'ACME Corporation', 'contact@acme.corp', 'premium'),
-('startup-x', 'Startup X Inc.', 'devops@startup-x.com', 'standard');
+('customer-a', 'Customer A Inc.', 'contact@customera.com', 'premium'),
+('customer-b', 'Customer B Corp.', 'support@customerb.com', 'standard');
 
+-- Seed Images
 INSERT INTO images (tenant_namespace, digest, tags, slsa_level) VALUES
-('acme-corp', 'sha256:abcdef123456', ARRAY['latest', '1.2.3'], 3),
-('startup-x', 'sha256:fedcba654321', ARRAY['latest'], 1);
+('customer-a', 'sha256:c3d3b3c3d3b3c3d3d3b3c3d3d3b3c3d3d3b3c3d3d3b3c3d3d3b3c3d3d3b3c3d3', '{"1.0.0", "latest"}', 3),
+('customer-a', 'sha256:a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1', '{"1.0.1"}', 3),
+('customer-a', 'sha256:b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2', '{"2.0.0-clean"}', 4),
+('customer-b', 'sha256:d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4', '{"v1-stable"}', 2);
 
--- Seed SBOMs
+-- Seed SBOM Records
 INSERT INTO sbom_records (image_id, format, uri) VALUES
-(1, 'SPDX', 'minio://sboms/acme-corp/image1.spdx.json'),
-(1, 'CycloneDX', 'minio://sboms/acme-corp/image1.cdx.json'),
-(2, 'SPDX', 'minio://sboms/startup-x/image2.spdx.json');
+(1, 'SPDX', 'minio://sboms/customer-a/image1-1.0.0.spdx.json'),
+(1, 'CycloneDX', 'minio://sboms/customer-a/image1-1.0.0.cyclonedx.json'),
+(2, 'SPDX', 'minio://sboms/customer-a/image2-1.0.1.spdx.json'),
+(4, 'SPDX', 'minio://sboms/customer-b/image4-v1-stable.spdx.json');
 
--- Seed CVEs
+-- Seed CVE Findings
 INSERT INTO cve_findings (image_id, cve_id, severity, description, fix_available) VALUES
-(1, 'CVE-2023-0001', 'Critical', 'Remote code execution vulnerability', true),
-(1, 'CVE-2023-0002', 'Medium', 'Cross-site scripting', true),
-(2, 'CVE-2023-0003', 'High', 'Denial of service in library foo', false);
+(1, 'CVE-2023-1111', 'Critical', 'Remote code execution vulnerability in lib-a.', true),
+(1, 'CVE-2023-2222', 'High', 'SQL injection in component-b.', false),
+(2, 'CVE-2023-3333', 'Medium', 'Cross-site scripting in web framework.', true),
+(4, 'CVE-2024-5555', 'High', 'Denial of service in network stack.', true);
 
 -- Seed Attestations
 INSERT INTO attestations (image_id, type, uri) VALUES
-(1, 'provenance', 'minio://attestations/acme-corp/image1.provenance.json'),
-(1, 'vuln-scan', 'minio://attestations/acme-corp/image1.vuln.json');
+(1, 'provenance', 'minio://attestations/customer-a/image1-provenance.json'),
+(1', 'vuln-scan', 'minio://attestations/customer-a/image1-vuln-scan.json'),
+(2, 'provenance', 'minio://attestations/customer-a/image2-provenance.json'),
+(3, 'provenance', 'minio://attestations/customer-a/image3-provenance.json'),
+(4, 'provenance', 'minio://attestations/customer-b/image4-provenance.json');
 
 -- Seed Build Events
 INSERT INTO build_events (tenant_namespace, image_id, trigger_type, status) VALUES
-('acme-corp', 1, 'manual', 'completed'),
-('startup-x', 2, 'webhook', 'completed');
+('customer-a', 1, 'webhook', 'completed'),
+('customer-a', 2, 'manual', 'completed'),
+('customer-a', 3, 'scheduled', 'completed'),
+('customer-b', 4, 'api', 'completed'),
+('customer-b', NULL, 'webhook', 'pending'); -- A build that hasn't completed yet
 
--- Seed data for new tables
-INSERT INTO customer_image_usage (tenant_namespace, image_id, runtime_info, version_pinned) VALUES
-('acme-corp', 1, 'prod-cluster-1', true),
-('startup-x', 2, 'staging-cluster', false);
+-- Seed Customer Image Usage
+INSERT INTO customer_image_usage (tenant_namespace, image_id, version_pinned, runtime_info) VALUES
+('customer-a', 1, true, 'prod-cluster-1'),
+('customer-a', 2, false, 'staging-cluster'),
+('customer-b', 4, true, 'prod-main');
 
-INSERT INTO sla_violations (tenant_namespace, cve_finding_id, status, created_at) VALUES
-('acme-corp', 1, 'active', NOW() - INTERVAL '10 days'); -- A pre-existing critical violation for ACME
+-- Seed SLA Violations
+-- Assuming CVE-2023-1111 (finding_id=1) for customer-a has breached the 'premium' SLA
+INSERT INTO sla_violations (tenant_namespace, cve_finding_id, status) VALUES
+('customer-a', 1, 'active');
+-- Assuming CVE-2024-5555 (finding_id=4) for customer-b has breached the 'standard' SLA
+INSERT INTO sla_violations (tenant_namespace, cve_finding_id, status) VALUES
+('customer-b', 4, 'active');
 
+
+-- Seed Notifications
+INSERT INTO notifications (tenant_namespace, type, payload, status) VALUES
+('customer-a', 'SLA_VIOLATION', '{"cve_id": "CVE-2023-1111", "severity": "Critical", "image_digest": "sha256:c3d3..."}', 'sent'),
+('customer-a', 'BUILD_COMPLETE', '{"image_id": 1, "tags": ["1.0.0", "latest"]}', 'sent');
+
+-- Seed Audit Logs
 INSERT INTO audit_logs (tenant_namespace, action, actor, details) VALUES
-('acme-corp', 'image_published', 'ci-pipeline-1', '{"image_id": 1, "digest": "sha256:abcdef123456"}'),
-('startup-x', 'image_published', 'ci-pipeline-2', '{"image_id": 2, "digest": "sha256:fedcba654321"}');
-
+('customer-a', 'build_triggered', 'webhook-service', '{"trigger": "upstream_commit", "commit_sha": "abcdef123"}'),
+('customer-a', 'image_published', 'system', '{"image_id": 1, "digest": "sha256:c3d3..."}'),
+('system', 'cve_registered', 'cve-scanner', '{"cve_id": "CVE-2023-1111", "image_id": 1}'),
+('customer-b', 'build_triggered', 'api-key-user', '{"trigger": "manual_api_call"}');
